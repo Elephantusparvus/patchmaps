@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-
-
 import geopandas as gpd
 import numpy as np
 from itertools import product
@@ -20,15 +18,15 @@ from sklearn.decomposition import PCA
 
 import math
 
-def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tramline=None) -> gpd.GeoDataFrame:
 
+def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tramline=None) -> gpd.GeoDataFrame:
     edge_length = working_width * factor
 
     if factor % 2 == 0:
         parallel_shift = 4
     else:
         parallel_shift = 2
-   
+
     input_crs = CRS.from_user_input(crs).name
     # find correct EPSG for calculation in meter
     utm_crs_list = query_utm_crs_info(datum_name=input_crs, area_of_interest=AreaOfInterest(
@@ -41,8 +39,7 @@ def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tr
     project = pyproj.Transformer.from_crs(crs, utm, always_xy=True).transform
     poly = transform(project, poly)
 
-
-    centroid =  poly.exterior.centroid
+    centroid = poly.exterior.centroid
     if tramline is None:
         coords = np.array(poly.exterior.coords)
         pca = PCA(n_components=2)
@@ -50,14 +47,13 @@ def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tr
         direction = pca.components_[0]
     else:
         tramline = tramline.to_crs('{}'.format(utm))
-        p0 = np.array(tramline ["geometry"][0].coords[0])  # First coordinate of permanent traffic laneb
+        p0 = np.array(tramline["geometry"][0].coords[0])  # First coordinate of permanent traffic laneb
         p1 = np.array(tramline["geometry"][0].coords[1])
         direction = p1 - p0
 
-
-
     def unit_vector(vector):
         return vector / np.linalg.norm(vector)
+
     def angle_between(v1, v2):
         v1_u = unit_vector(v1)
         v2_u = unit_vector(v2)
@@ -71,7 +67,7 @@ def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tr
     x_diff = rotated.bounds[2] - rotated.bounds[0]
     y_diff = rotated.bounds[3] - rotated.bounds[1]
 
-    ##get the right dimension for layout
+    # get the right dimension for layout
     dimension = x_diff / edge_length, y_diff / edge_length
     dimension_a = math.ceil(dimension[0])
     dimension_b = math.ceil(dimension[1])
@@ -79,9 +75,9 @@ def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tr
     # Second coordinate of permanent traffic lane
     q1 = np.array([edge_length, 0])
     q2 = np.array([0, edge_length])
-
-    # top left of grid
+    # bottom left of grid
     so = np.array([rotated.bounds[0], rotated.bounds[1]])
+
     def compute_poly(i, j):
         s = so + i * q1 + j * q2
         patch = Polygon([s, s + q1, s + (q1 + q2), s + q2])
@@ -93,7 +89,6 @@ def get_structure(poly: Polygon, crs='epsg:4326', working_width=36, factor=2, tr
 
     # clip to boundary
     patches_within = data.clip(poly, keep_geom_type=True)
-
     patches_within = patches_within.to_crs(crs)
 
     return patches_within
